@@ -1,0 +1,41 @@
+struct MyStruct { 
+    node:int,
+    len:int  
+}
+
+let a:MyStruct;
+let b:int;
+let c:int;
+
+fn foo(a:int, b:int)->int{
+    if((a < b)){
+        let i:int = 10;
+        while((i > 0)){
+            let j:int = i - 1;
+            while(j > 0){
+                j = j - 1;
+            }
+            i = i - 1;
+        }
+        let j:int = a * b;
+    }
+    i = b - a;
+}
+
+fn main(a2:int, b3:int)->int{
+    a.node = 3;
+    a.len = 20;
+
+    while(a.len > 0){
+        a.node = foo(a.node, a2);
+        a.len = a.len - b3;
+    }
+    
+    //ret foo(a.node, a.len);
+}
+
+
+/*
+    key:
+    line 22 i undeclared
+*/

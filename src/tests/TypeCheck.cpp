@@ -11,7 +11,6 @@ intMap funcStat;
 paramMemberMap func2Param;
 paramMemberMap struct2Members;
 
-string cur_fn; // to check for ret type
 
 // private util functions. You can use these functions to help you debug.
 void error_print(std::ostream* out, A_pos p, string info)
@@ -296,7 +295,7 @@ string get_type(aA_type type) {
     return type->u.structType != nullptr ? *(type->u.structType) : "null";
 }
 
-void assign_type_check(std::ostream* out, aA_type type, aA_rightVal val) //check whether type of 'type' and 'val' matches, also val validity
+void assign_type_check(std::ostream* out, aA_type type, aA_rightVal val)
 {
     if(val->kind == A_rightValType::A_boolExprValKind) {
         error_print(out, val->pos, "Can't be assigned a bool value");
@@ -307,13 +306,13 @@ void assign_type_check(std::ostream* out, aA_type type, aA_rightVal val) //check
         if(arExp->kind == A_arithExprType::A_arithBiOpExprKind) {
             check_ArithBiOpExpr(out, arExp->u.arithBiOpExpr);
             if(get_type(type) != "int") {
-                error_print(out, arExp->pos, "Right-value's type inconsistent with desired type");
+                error_print(out, arExp->pos, "Right-value's type inconsistent with variable type");
             }
         }
         if(arExp->kind == A_arithExprType::A_exprUnitKind) {
             aA_type rType = check_ExprUnit(out, arExp->u.exprUnit);
             if(get_type(type) != get_type(rType)) {
-                error_print(out, arExp->pos, "Right-value's type inconsistent with desired type");
+                error_print(out, arExp->pos, "Right-value's type inconsistent with variable type");
             }
         }
     }
@@ -460,7 +459,7 @@ void check_FnDef(std::ostream* out, aA_fnDef fd)
     }
    
     check_FnDecl(out, fd->fnDecl);
-    cur_fn = name;
+    
     // add param to cur ids
     vector<aA_varDecl>* v = func2Param.at(name);
     for(aA_varDecl var : *v) {
@@ -518,6 +517,7 @@ void check_CodeblockStmtList(std::ostream* out, vector<aA_codeBlockStmt> blocks)
 void check_CodeblockStmt(std::ostream* out, aA_codeBlockStmt cs, vector<string>* sub_token){
     if(!cs)
         return;
+    std::cout << "hear" << std::endl;
     switch (cs->kind)
     {
     case A_codeBlockStmtType::A_varDeclStmtKind:
@@ -822,9 +822,6 @@ aA_type check_FuncCall(std::ostream* out, aA_fnCall fc){
         error_print(out, fc->pos, "Function name " + name + " not exist");
     }
     else {
-        if ((funcStat.at(name) & 2) == 0) { //not defined
-            error_print(out, fc->pos, "Function " + name + " not defined");
-        }
         ret = g_token2Type.at(name);
     }
     
@@ -872,9 +869,6 @@ void check_CallStmt(std::ostream* out, aA_callStmt cs){
 void check_ReturnStmt(std::ostream* out, aA_returnStmt rs){
     if(!rs)
         return;
-
-    aA_type type = g_token2Type.at(cur_fn);
-    assign_type_check(out, type, rs->retVal);
     return;
 }
 

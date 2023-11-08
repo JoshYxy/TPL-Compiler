@@ -1,0 +1,28 @@
+global var and local var in different types
+let a:int = a
+global multi def/decl
+global def using fncall
+
+array def value outnumber length
+
+scalar or array check?
+
+1.assign rightval is bool
+
+fn return void assigned to int var
+
+struct type in another struct define
+
+struct define and func param order?
+
+func param difference in decl and def?
+
+struct var arr def with struct
+
+fncall with struct id?
+
+return type different from fn define
+
+no return?
+
+void function check
