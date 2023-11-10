@@ -1,16 +1,11 @@
-struct MyStruct { 
-    node:int,
-    len:int  
+
+
+fn foo(b:int){
+    let c:int = b;
 }
 
-fn foo(a[10]:int, b:int)->int{
-    let c:int = a[0]-b;
-    ret c;
-}
-
-fn bar(a[10]:int, b:int)->Mystruct{
-    let c:int = a[0]-b;
-    let d:MyStruct;
+fn bar(a[10]:int, b:int){
+    let c:int = foo(1);
     ret d;
 }
 

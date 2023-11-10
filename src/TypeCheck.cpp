@@ -10,7 +10,7 @@ intMap cur_token2ArrLen;
 intMap funcStat;
 
 paramMemberMap func2Param;
-paramArrMap func2ParamArr;
+// paramArrMap func2ParamArr;
 paramMemberMap struct2Members;
 
 string cur_fn; // to check for ret type
@@ -282,6 +282,7 @@ void check_VarDecl(std::ostream* out, aA_varDeclStmt vd)//only check, not for ma
 }
 void struct_type_check(std::ostream* out, A_pos pos, aA_type type)
 {
+    if(type == nullptr) return;
     if(type->type == A_dataType::A_structTypeKind) {
         //chekc struct define
         string* type_name = type->u.structType;
@@ -360,6 +361,11 @@ void check_StructDef(std::ostream* out, aA_structDef sd)
     }
     
     vector<aA_varDecl> vars = sd->varDecls;
+    vector<aA_varDecl>* vp = new vector<aA_varDecl>(vars);
+    aA_type ph = aA_Type(A_StructType(nullptr, "")); // quite strange
+
+    struct2Members.insert(make_pair(id, vp)); // add first for struct in struct
+    g_token2Type.insert(make_pair(id, ph));// struct name can't coincide with a var name
     for(auto var : vars) {
         if (var->kind == A_varDeclType::A_varDeclScalarKind) {
             aA_varDeclScalar vds = var->u.declScalar;
@@ -374,12 +380,6 @@ void check_StructDef(std::ostream* out, aA_structDef sd)
             struct_type_check(out, vda->pos, type);
         }
     }
-
-    vector<aA_varDecl>* vp = new vector<aA_varDecl>(vars);
-    aA_type ph = aA_Type(A_StructType(nullptr, "")); // quite strange
-
-    struct2Members.insert(make_pair(id, vp));
-    g_token2Type.insert(make_pair(id, ph));// struct name can't coincide with a var name
     return;
 }
 
@@ -396,6 +396,7 @@ void check_FnDecl(std::ostream* out, aA_fnDecl fd)
     */
     string name = *(fd->id);
     aA_type type = fd->type;
+    if(type != nullptr) struct_type_check(out, type->pos, type);
 
     if (g_token2Type.find(name) == g_token2Type.end()) { //not already declared or defined
         g_token2Type.insert(make_pair(name, type));
@@ -408,7 +409,7 @@ void check_FnDecl(std::ostream* out, aA_fnDecl fd)
 
         vector<aA_varDecl> new_vars = fd->paramDecl->varDecls;
         vector<aA_varDecl> vars = *(func2Param.at(name));
-        vector<bool> isArr = *(func2ParamArr.at(name));
+       
         aA_type cur;
         aA_type new_cur;
         string name;
@@ -471,7 +472,7 @@ void check_FnDecl(std::ostream* out, aA_fnDecl fd)
         vector<aA_varDecl>* vp = new vector<aA_varDecl>(vars);
         
         func2Param.insert(make_pair(name, vp));
-        func2ParamArr.insert(make_pair(name, isArr));
+        // func2ParamArr.insert(make_pair(name, isArr));
     }
 
     return;
@@ -657,6 +658,12 @@ void check_AssignStmt(std::ostream* out, aA_assignStmt as){
 
 aA_type check_VarExpr(std::ostream* out, A_pos pos, string name) {
     aA_type ret = nullptr;
+    if (func2Param.find(name) != func2Param.end()) {
+        error_print(out, pos, "Func name can't be used as a var");
+    }
+    if (struct2Members.find(name) != struct2Members.end()) {
+        error_print(out, pos, "Struct name can't be used as a var");
+    }
     if (cur_token2Type.find(name) != cur_token2Type.end()) { // local or param
         ret = cur_token2Type.at(name);
     }
@@ -692,8 +699,7 @@ aA_type check_ArrayExpr(std::ostream* out, aA_arrayExpr ae){
     if(ae->idx->kind == A_indexExprKind::A_idIndexKind) {
         string id = *(ae->idx->u.id);
         aA_type type;
-
-        check_VarExpr(out, ae->idx->pos, id);
+        type = check_VarExpr(out, ae->idx->pos, id);
 
         if(get_type(type) != "int") {
             error_print(out, ae->idx->pos, "Id " + id + " type in array must be int");
@@ -874,6 +880,11 @@ bool check_ExprUnitArr(aA_exprUnit eu){
             }
         }
             break;
+        case A_exprUnitType::A_arithUExprKind:{
+            /* write your code here */
+            return check_ExprUnitArr(eu->u.arithUExpr->expr);
+        }
+            break;
     }
     return false;
 }
@@ -958,7 +969,7 @@ aA_type check_FuncCall(std::ostream* out, aA_fnCall fc){
     
     vector<aA_rightVal> vals = fc->vals;
     vector<aA_varDecl> vars = *(func2Param.at(name));
-    vector<bool> isArr = *(func2ParamArr.at(name));
+  
     if(vals.size() != vars.size()) {
         error_print(out, fc->pos, "Param number incompatible with function " + name);
     }

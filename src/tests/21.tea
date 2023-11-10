@@ -1,0 +1,41 @@
+
+fn foo(gad[10]:My)->My;
+
+fn barnull();
+
+fn main()->int{
+    barnull();
+    foo(gad);
+    ret 0;
+}
+let aa:int;
+
+fn foo(gad[10]:My)->My{
+	let a:int;
+	let b[10]:int;	
+	let r:int = 0;
+	let C:My;
+	let i:int = 0;
+	while(i<10) {
+		let temp:My = gad[i];
+		r = r + temp.node;
+		r = r+ temp.val;
+	}
+	ret C;
+	break;
+	continue;
+	let arr[10]:int;
+	//let d:int = 2 + -arr;
+	
+	
+
+}
+
+struct My {
+node:int,
+val:int,
+aa:int,
+abc:My	
+
+}
+let gad[10]:My;
