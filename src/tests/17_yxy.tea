@@ -1,0 +1,28 @@
+struct MyStruct { 
+    node:int,
+    len:int  
+}
+
+fn foo(a:int, b:int)->MyStruct{
+    let c:MyStruct;
+    ret c;
+}
+
+fn main(a:int, b:int)->int{
+    let c:MyStruct;
+    let bb:MyStruct;
+    bb = c;
+    let d:MyStruct = c;
+    c.node = 1;
+    c.len = 3;
+    if(c>bb){
+        break;
+    }
+    ret foo(a, b) - foo(b, a);
+}
+
+
+/*
+    key:
+    type check passed.
+*/

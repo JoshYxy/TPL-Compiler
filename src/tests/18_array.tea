@@ -1,0 +1,28 @@
+struct MyStruct { 
+    node:int,
+    len:int  
+}
+
+fn foo(a[10]:int, b:int)->int{
+    let c:int = a[0]-b;
+    ret c;
+}
+
+fn main(a:int, b:int)->int{
+    let aa[5]:int = {0};
+    let bb:int;
+    bb = aa[2];
+    foo(aa, 10);
+    // let dd[10]:MyStruct = {0}; //wrong
+    bb = aa; //wrong, 数组和标量左右赋值
+    aa = bb; //wrong
+    // bb[10] = 13;    //wrong，标量当作数组用
+    foo(a, 10); // wrong，传参不正确
+    ret 0;
+}
+
+
+/*
+    key:
+    type check passed.
+*/

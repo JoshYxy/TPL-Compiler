@@ -26,3 +26,5 @@ return type different from fn define
 no return?
 
 void function check
+
+函数传参，赋值，初始化

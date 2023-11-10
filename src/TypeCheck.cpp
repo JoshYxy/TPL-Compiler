@@ -6,9 +6,11 @@ typeMap cur_token2Type; // current func params and local var
 typeMap funcparam_token2Type; // func params token ids to type
 
 intMap g_token2ArrLen;
+intMap cur_token2ArrLen;
 intMap funcStat;
 
 paramMemberMap func2Param;
+paramArrMap func2ParamArr;
 paramMemberMap struct2Members;
 
 string cur_fn; // to check for ret type
@@ -116,7 +118,7 @@ void check_Prog(std::ostream* out, aA_program p)
             break;
         }   
     }
-    print_token_map(&g_token2Type);
+    // print_token_map(&g_token2Type);
     // first check all declstmt, check def in next turn
     for (auto ele : p->programElements)
     {
@@ -186,6 +188,7 @@ void add_VarDecl(aA_varDeclStmt vd, bool global, vector<string>* s) {
     else {
         if(s) (*s).emplace_back(*id);
         cur_token2Type.insert(make_pair(*id, type));
+        if(len > 0) cur_token2ArrLen.insert(make_pair(*id, len));
     }
 }
 
@@ -253,7 +256,7 @@ void check_VarDecl(std::ostream* out, aA_varDeclStmt vd)//only check, not for ma
 
             struct_type_check(out, vds->pos, var_type);
             assign_type_check(out, var_type, vds->val);
-
+            assign_arr_check(out, false, vds->val);
         }
         if(vd->u.varDef->kind == A_varDefType::A_varDefArrayKind) {
             aA_varDefArray vda = vd->u.varDef->u.defArray;
@@ -271,6 +274,7 @@ void check_VarDecl(std::ostream* out, aA_varDeclStmt vd)//only check, not for ma
             struct_type_check(out, vda->pos, arr_type);
             for(auto rv : vda->vals){
                 assign_type_check(out, arr_type, rv);
+                assign_arr_check(out, false, rv);
             }
         }
     }
@@ -296,6 +300,20 @@ string get_type(aA_type type) {
     return type->u.structType != nullptr ? *(type->u.structType) : "null";
 }
 
+void assign_arr_check(std::ostream* out, bool isArr, aA_rightVal val) {
+    bool check_res = false;
+
+    if(val->kind == A_rightValType::A_arithExprValKind) {
+        aA_arithExpr arExp = val->u.arithExpr;
+        if(arExp->kind == A_arithExprType::A_exprUnitKind) {
+            check_res = check_ExprUnitArr(arExp->u.exprUnit);    
+        }
+    }
+    if(isArr != check_res) {
+        error_print(out, val->pos, "Array and Scalar not match");
+    }
+}
+
 void assign_type_check(std::ostream* out, aA_type type, aA_rightVal val) //check whether type of 'type' and 'val' matches, also val validity
 {
     if(val->kind == A_rightValType::A_boolExprValKind) {
@@ -312,6 +330,7 @@ void assign_type_check(std::ostream* out, aA_type type, aA_rightVal val) //check
         }
         if(arExp->kind == A_arithExprType::A_exprUnitKind) {
             aA_type rType = check_ExprUnit(out, arExp->u.exprUnit);
+            // *out << "r_type:"+get_type(rType)+" type:"+get_type(type)+"\n";
             if(get_type(type) != get_type(rType)) {
                 error_print(out, arExp->pos, "Right-value's type inconsistent with desired type");
             }
@@ -382,11 +401,55 @@ void check_FnDecl(std::ostream* out, aA_fnDecl fd)
         g_token2Type.insert(make_pair(name, type));
     }
     else {
-        if (get_type(g_token2Type.at(name)) != get_type(type)) {
+        if (get_type(g_token2Type.at(name)) != get_type(type)) { // check return value
             error_print(out, fd->pos, "return type different in function " + name);
         }
+        // check params
+
+        vector<aA_varDecl> new_vars = fd->paramDecl->varDecls;
+        vector<aA_varDecl> vars = *(func2Param.at(name));
+        vector<bool> isArr = *(func2ParamArr.at(name));
+        aA_type cur;
+        aA_type new_cur;
+        string name;
+        string new_name;
+        if(new_vars.size() != vars.size()) {
+            error_print(out, fd->pos, "Param number incompatible between define and declare");
+        }
+        for(int i = 0; i < new_vars.size(); i++) {
+            if (vars[i]->kind != new_vars[i]->kind) {
+                error_print(out, fd->pos, "Param mismatch between define and declare");
+            }
+            if (vars[i]->kind == A_varDeclType::A_varDeclScalarKind) {
+                cur = vars[i]->u.declScalar->type;
+                new_cur = new_vars[i]->u.declScalar->type;
+                if(get_type(cur) != get_type(new_cur)) {
+                    error_print(out, fd->pos, "Param type mismatch between define and declare");
+                }
+                
+                name = *vars[i]->u.declScalar->id;
+                new_name = *new_vars[i]->u.declScalar->id;
+                if(name != new_name) {
+                    error_print(out, fd->pos, "Param name mismatch between define and declare");
+                }
+            }
+            if (vars[i]->kind == A_varDeclType::A_varDeclArrayKind) {
+                cur = vars[i]->u.declArray->type;
+                new_cur = new_vars[i]->u.declArray->type;
+                if(get_type(cur) != get_type(new_cur)) {
+                    error_print(out, fd->pos, "Param type mismatch between define and declare");
+                }
+                                
+                name = *vars[i]->u.declArray->id;
+                new_name = *new_vars[i]->u.declArray->id;
+                if(name != new_name) {
+                    error_print(out, fd->pos, "Param name mismatch between define and declare");
+                }
+            }
+        }
+
     }
-     
+    vector<bool>* isArr = new vector<bool>;
     if (func2Param.find(name) == func2Param.end()) { 
         vector<aA_varDecl> vars = fd->paramDecl->varDecls;
         for(auto var : vars) {
@@ -395,17 +458,20 @@ void check_FnDecl(std::ostream* out, aA_fnDecl fd)
                 string* id = vds->id;
                 aA_type type = vds->type;
                 struct_type_check(out, vds->pos, type);
+                isArr->emplace_back(false);
             }
             if (var->kind == A_varDeclType::A_varDeclArrayKind) {
                 aA_varDeclArray vda = var->u.declArray;
                 string* id = vda->id;
                 aA_type type = vda->type;
                 struct_type_check(out, vda->pos, type);
+                isArr->emplace_back(true);
             }
         }
         vector<aA_varDecl>* vp = new vector<aA_varDecl>(vars);
         
         func2Param.insert(make_pair(name, vp));
+        func2ParamArr.insert(make_pair(name, isArr));
     }
 
     return;
@@ -423,6 +489,9 @@ void check_FnDeclStmt(std::ostream* out, aA_fnDeclStmt fd)
     if (funcStat.find(name) != funcStat.end()) {
         if ((funcStat.at(name) & 1) != 0) { //declared
             error_print(out, fd->pos, "function has already been declared");
+        }
+        if ((funcStat.at(name) & 2) != 0) { //defined
+            error_print(out, fd->pos, "function has already been defined");
         }
     }
 
@@ -469,7 +538,8 @@ void check_FnDef(std::ostream* out, aA_fnDef fd)
             cur_token2Type.insert(make_pair(*(var->u.declScalar->id), var->u.declScalar->type));
         }
         if (var->kind == A_varDeclType::A_varDeclArrayKind) {
-            cur_token2Type.insert(make_pair(*(var->u.declArray->id), var->u.declArray->type));     
+            cur_token2Type.insert(make_pair(*(var->u.declArray->id), var->u.declArray->type));  
+            cur_token2ArrLen.insert(make_pair(*(var->u.declArray->id), var->u.declArray->len));
         }
 
     }
@@ -485,7 +555,8 @@ void check_FnDef(std::ostream* out, aA_fnDef fd)
             cur_token2Type.erase(*(var->u.declScalar->id));
         }
         if (var->kind == A_varDeclType::A_varDeclArrayKind) {
-            cur_token2Type.erase(*(var->u.declArray->id));  
+            cur_token2Type.erase(*(var->u.declArray->id));
+            cur_token2ArrLen.erase(*(var->u.declArray->id));  
         }
 
     }
@@ -512,6 +583,7 @@ void check_CodeblockStmtList(std::ostream* out, vector<aA_codeBlockStmt> blocks)
 
     for(auto s : sub_token) {
         cur_token2Type.erase(s);
+        cur_token2ArrLen.erase(s);
     }
 }
 
@@ -551,6 +623,7 @@ void check_AssignStmt(std::ostream* out, aA_assignStmt as){
         return;
     string name;
     aA_type left_type;
+    assign_arr_check(out, false, as->rightVal); // right value must not be array
     switch (as->leftVal->kind)
     {
         case A_leftValType::A_varValKind:{
@@ -558,6 +631,12 @@ void check_AssignStmt(std::ostream* out, aA_assignStmt as){
             name = *(as->leftVal->u.id);
             left_type = check_VarExpr(out, as->leftVal->pos, name);
             assign_type_check(out, left_type, as->rightVal);
+            if(cur_token2ArrLen.find(name) != cur_token2ArrLen.end()) {
+                error_print(out, as->leftVal->pos, "Array can't be assigned");
+            }
+            if(cur_token2Type.find(name) == cur_token2Type.end() && g_token2ArrLen.find(name) != g_token2ArrLen.end()) {
+                error_print(out, as->leftVal->pos, "Array can't be assigned");
+            }
         }
             break;
         case A_leftValType::A_arrValKind:{
@@ -606,6 +685,10 @@ aA_type check_ArrayExpr(std::ostream* out, aA_arrayExpr ae){
 
     ret = check_VarExpr(out, ae->pos, name);
 
+    if (cur_token2ArrLen.find(name) == cur_token2ArrLen.end() && g_token2ArrLen.find(name) == g_token2ArrLen.end()) {
+        error_print(out, ae->pos, name + " is not array!");
+    }
+
     if(ae->idx->kind == A_indexExprKind::A_idIndexKind) {
         string id = *(ae->idx->u.id);
         aA_type type;
@@ -614,6 +697,11 @@ aA_type check_ArrayExpr(std::ostream* out, aA_arrayExpr ae){
 
         if(get_type(type) != "int") {
             error_print(out, ae->idx->pos, "Id " + id + " type in array must be int");
+        }
+    }
+    if(ae->idx->kind == A_indexExprKind::A_numIndexKind) {
+        if(ae->idx->u.num < 0) {
+            error_print(out, ae->idx->pos, "Num in array must > 0");
         }
     }
     return ret;
@@ -721,11 +809,19 @@ void check_BoolUnit(std::ostream* out, aA_boolUnit bu){
             if(get_type(type) != "int") {
                 error_print(out, left->pos, "Variable type in comparison must be int");
             }
-
+            bool isArr = check_ExprUnitArr(left);
+            if(isArr) {
+                error_print(out, left->pos, "Variable in bool expression must not be entire array");
+            }
+            // check_ExprUnitArr(bu->u.comExpr->left);
             aA_exprUnit right = bu->u.comExpr->right;
             type = check_ExprUnit(out, right);
             if(get_type(type) != "int") {
                 error_print(out, right->pos, "Variable type in comparison must be int");
+            }
+            isArr = check_ExprUnitArr(right);
+            if(isArr) {
+                error_print(out, right->pos, "Variable in bool expression must not be entire array");
             }
             
             break;
@@ -748,7 +844,39 @@ void check_BoolUnit(std::ostream* out, aA_boolUnit bu){
     }
     return;
 }
-
+bool check_ExprUnitArr(aA_exprUnit eu){
+    if(!eu)
+        return false;
+    switch (eu->kind)
+    {
+        case A_exprUnitType::A_idExprKind:{
+            /* write your code here */
+            string id = *(eu->u.id);
+            if(cur_token2ArrLen.find(id) != cur_token2ArrLen.end()) {
+                return true;
+            }
+            else {
+                if(g_token2ArrLen.find(id) != g_token2ArrLen.end() && cur_token2Type.find(id) == cur_token2Type.end()) {
+                    return true;
+                }
+            }
+        }
+            break;
+        // case A_exprUnitType::A_memberExprKind:{
+        //     /* write your code here */
+        //     ret = check_MemberExpr(out, eu->u.memberExpr);
+        // }
+            break;
+        case A_exprUnitType::A_arithExprKind:{
+            /* write your code here */
+            if (eu->u.arithExpr->kind == A_arithExprType::A_exprUnitKind) {
+                return check_ExprUnitArr(eu->u.arithExpr->u.exprUnit);
+            }
+        }
+            break;
+    }
+    return false;
+}
 
 aA_type check_ExprUnit(std::ostream* out, aA_exprUnit eu){
     // validate the expression unit and return the aA_type of it
@@ -822,14 +950,15 @@ aA_type check_FuncCall(std::ostream* out, aA_fnCall fc){
         error_print(out, fc->pos, "Function name " + name + " not exist");
     }
     else {
-        if ((funcStat.at(name) & 2) == 0) { //not defined
-            error_print(out, fc->pos, "Function " + name + " not defined");
-        }
+        // if ((funcStat.at(name) & 2) == 0) { //not defined
+        //     error_print(out, fc->pos, "Function " + name + " not defined");
+        // }
         ret = g_token2Type.at(name);
     }
     
     vector<aA_rightVal> vals = fc->vals;
     vector<aA_varDecl> vars = *(func2Param.at(name));
+    vector<bool> isArr = *(func2ParamArr.at(name));
     if(vals.size() != vars.size()) {
         error_print(out, fc->pos, "Param number incompatible with function " + name);
     }
@@ -837,9 +966,11 @@ aA_type check_FuncCall(std::ostream* out, aA_fnCall fc){
         
         if (vars[i]->kind == A_varDeclType::A_varDeclScalarKind) {
             cur = vars[i]->u.declScalar->type;
+            assign_arr_check(out, false, vals[i]);
         }
         if (vars[i]->kind == A_varDeclType::A_varDeclArrayKind) {
             cur = vars[i]->u.declArray->type;
+            assign_arr_check(out, true, vals[i]);
         }
         assign_type_check(out, cur, vals[i]);
     
@@ -888,6 +1019,10 @@ void check_ArithBiOpExpr(std::ostream* out, aA_arithBiOpExpr ae) {
         if(get_type(type) != "int") {
             error_print(out, left->u.exprUnit->pos, "Variable type in arithmetic must be int");
         }
+        bool isArr = check_ExprUnitArr(left->u.exprUnit);
+        if(isArr) {
+            error_print(out, left->u.exprUnit->pos, "Variable in arithmetic must not be entire array");
+        }
     }
 
     aA_arithExpr right = ae->right;
@@ -898,6 +1033,10 @@ void check_ArithBiOpExpr(std::ostream* out, aA_arithBiOpExpr ae) {
         aA_type type = check_ExprUnit(out, right->u.exprUnit);
         if(get_type(type) != "int") {
             error_print(out, right->u.exprUnit->pos, "Variable type in arithmetic must be int");
+        }
+        bool isArr = check_ExprUnitArr(right->u.exprUnit);
+        if(isArr) {
+            error_print(out, right->u.exprUnit->pos, "Variable in arithmetic must not be entire array");
         }
     }
 }
