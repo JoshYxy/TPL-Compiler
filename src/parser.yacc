@@ -87,7 +87,7 @@ extern int  yywrap();
 %token <pos> WHILE
 %token <pos> BREAK
 %token <pos> CONTINUE
-%token <pos> RET
+%token <pos> RETURN
 %token <pos> FN
 %token <pos> STRUCT
 
@@ -261,10 +261,15 @@ FnCall: ID LPAR RightValList RPAR
 }
 ;
 
-ReturnStmt: RET RightVal SEMICOLON
+ReturnStmt: RETURN RightVal SEMICOLON
 {
   $$ = A_ReturnStmt($1, $2);
 }
+| RETURN SEMICOLON
+{
+  $$ = A_ReturnStmt($1, nullptr);
+}
+
 ;
 
 VarDeclStmt: LET VarDecl SEMICOLON

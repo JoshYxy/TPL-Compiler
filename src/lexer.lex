@@ -33,7 +33,7 @@ while { set_pos(5); return WHILE; }
 else { set_pos(4); return ELSE; } 
 break { set_pos(5); return BREAK; } 
 continue { set_pos(8); return CONTINUE; } 
-ret { set_pos(3); return RET; } 
+ret { set_pos(3); return RETURN; } 
 fn { set_pos(2); return FN; } 
 let { set_pos(3); return LET; } 
 struct { set_pos(6); return STRUCT; }
@@ -74,7 +74,7 @@ int { set_pos(3); return INT; }
 
 [1-9][0-9]*|"0" { set_num(); return NUM; }
 
-[a-zA-Z][a-zA-Z0-9]* { set_id(); return ID; }
+[a-zA-Z_][a-zA-Z0-9_]* { set_id(); return ID; }
 
 [\t] { col+=4; }
 [ ] { col++; }
