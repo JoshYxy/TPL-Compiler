@@ -14,6 +14,8 @@ static unordered_map<string,Name_name*> globalVarMap;
 static unordered_map<string,Temp_temp*> localVarMap;
 static list<L_stm*> emit_irs;
 
+bool blockEnd = false; // meet break continue and return
+
 LLVMIR::L_prog* ast2llvm(aA_program p)
 {
     auto defs = ast2llvmProg_first(p);
@@ -620,6 +622,10 @@ Func_local* ast2llvmFunc(aA_fnDef f)
     for(aA_codeBlockStmt block : blocks)
     {
         ast2llvmBlock(block);
+        if(blockEnd) {
+            blockEnd = false;
+            break;
+        }
     }
 
     return new Func_local(name,type,args,emit_irs);
@@ -783,18 +789,31 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             for(aA_codeBlockStmt block : block->u.ifStmt->ifStmts)
             {
                 ast2llvmBlock(block, con_label, bre_label);
+                if(blockEnd) {
+                    break;
+                }
             }
-            L_stm *stm3 = L_Jump(end_label);
-            emit_irs.push_back(stm3);
+            if(!blockEnd) {
+                L_stm *stm3 = L_Jump(end_label);
+                emit_irs.push_back(stm3);
+            }
+            blockEnd = false;
 
             L_stm *stm4 = L_Label(false_label);
             emit_irs.push_back(stm4);
             for(aA_codeBlockStmt block : block->u.ifStmt->elseStmts)
             {
                 ast2llvmBlock(block, con_label, bre_label);
+                if(blockEnd) {
+                    break;
+                }
             }
-            L_stm *stm5 = L_Jump(end_label);
-            emit_irs.push_back(stm5);
+            if(!blockEnd) {
+                L_stm *stm5 = L_Jump(end_label);
+                emit_irs.push_back(stm5);
+            }
+            blockEnd = false;
+
             L_stm *stm6 = L_Label(end_label);
             emit_irs.push_back(stm6);
         }
@@ -810,10 +829,16 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             for(aA_codeBlockStmt block : block->u.ifStmt->ifStmts)
             {
                 ast2llvmBlock(block,con_label,bre_label);
+                if(blockEnd) {
+                    break;
+                }
             }
-
-            L_stm *stm3 = L_Jump(end_label);
-            emit_irs.push_back(stm3);
+            if(!blockEnd) {
+                L_stm *stm3 = L_Jump(end_label);
+                emit_irs.push_back(stm3);
+            }
+            blockEnd = false;
+ 
             L_stm *stm4 = L_Label(end_label);
             emit_irs.push_back(stm4);
         }
@@ -836,7 +861,11 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
         for(aA_codeBlockStmt block : block->u.whileStmt->whileStmts)
         {
             ast2llvmBlock(block,con_label,bre_label);
+            if(blockEnd) {
+                break;
+            }
         }
+        blockEnd = false;
         L_stm *stm4 = L_Jump(con_label);
         emit_irs.push_back(stm4);
         L_stm *stm5 = L_Label(bre_label);
@@ -878,18 +907,21 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             L_stm *stm = L_Ret(ast2llvmRightVal(block->u.returnStmt->retVal));
             emit_irs.push_back(stm);
         }
+        blockEnd = true;
     }
         break;
     case A_codeBlockStmtType::A_breakStmtKind:
     {
         L_stm *stm = L_Jump(bre_label);
         emit_irs.push_back(stm);
+        blockEnd = true;
     }
         break;
     case A_codeBlockStmtType::A_continueStmtKind:
     {
         L_stm *stm = L_Jump(con_label);
         emit_irs.push_back(stm);
+        blockEnd = true;
     }
         break;
     default:
@@ -908,7 +940,36 @@ AS_operand* ast2llvmRightVal(aA_rightVal r)
         break;
     case A_rightValType::A_boolExprValKind:
     {
-        return ast2llvmBoolExpr(r->u.boolExpr);
+        Temp_label *true_label = Temp_newlabel();
+        Temp_label *false_label = Temp_newlabel();
+        Temp_label *end_label = Temp_newlabel();
+
+        AS_operand* tmp = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
+        L_stm *stm0 = L_Alloca(tmp);
+        emit_irs.push_back(stm0);
+        ast2llvmBoolExpr(r->u.boolExpr, true_label, false_label);
+    
+        L_stm *stm = L_Label(true_label);
+        emit_irs.push_back(stm);
+        L_stm *stm2 = L_Store(AS_Operand_Const(1), tmp);
+        emit_irs.push_back(stm2);
+        L_stm *stm3 = L_Jump(end_label);
+        emit_irs.push_back(stm3);
+
+        L_stm *stm4 = L_Label(false_label);
+        emit_irs.push_back(stm4);
+        L_stm *stm5 = L_Store(AS_Operand_Const(0), tmp);
+        emit_irs.push_back(stm5);
+        L_stm *stm6 = L_Jump(end_label);
+        emit_irs.push_back(stm6);
+
+        L_stm *stm7 = L_Label(end_label);
+        emit_irs.push_back(stm7);
+        AS_operand* ret = AS_Operand_Temp(Temp_newtemp_int());
+        L_stm *stm8 = L_Load(ret, AS_Operand_Temp(tmp->u.TEMP));
+        emit_irs.push_back(stm8);
+
+        return ret;
     }
         break;
     default:
@@ -1519,5 +1580,20 @@ LLVMIR::L_func* ast2llvmFuncBlock(Func_local *f)
 
 void ast2llvm_moveAlloca(LLVMIR::L_func *f)
 {
+    for (auto it = next(f->blocks.begin()); it != f->blocks.end(); it++)
+    {
+        L_block *block = *it;
+        for (auto it2 = block->instrs.begin(); it2 != block->instrs.end(); it2++)
+        {
+            L_stm *stm = *it2;
+            if (stm->type == L_StmKind::T_ALLOCA)
+            {
+                L_block* block = f->blocks.front();
+                block->instrs.insert(next(block->instrs.begin()), stm);
+                it2 = block->instrs.erase(it2);
+                it2--;
+            }
+        }
+    }
     
 }
