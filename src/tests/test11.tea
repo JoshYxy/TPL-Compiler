@@ -1,0 +1,20 @@
+struct Node {
+  int a,
+  Node next
+}
+
+fn foo(let a:int)->int {
+  a = 2;
+  ret 0;
+}
+
+fn main()->int {
+  let b:int = 10;
+  let node:Node;
+  node.a = 1;
+  let node2:Node;
+
+  foo(b);
+  putint(b);
+  putint(node.a);
+}

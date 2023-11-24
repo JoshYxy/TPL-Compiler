@@ -1177,7 +1177,7 @@ void ast2llvmBoolUnit(aA_boolUnit b,Temp_label *true_label,Temp_label *false_lab
         ast2llvmComOpExpr(b->u.comExpr, true_label, false_label);
     }
     else if(b->kind == A_boolUnitType::A_boolUOpExprKind){
-        AS_operand *cond = ast2llvmBoolExpr(b->u.boolExpr, false_label, true_label);
+        ast2llvmBoolUnit(b->u.boolUOpExpr->cond, false_label, true_label);
         // L_stm *stm = L_Cjump(cond, false_label, true_label);
         // emit_irs.push_back(stm);
     }

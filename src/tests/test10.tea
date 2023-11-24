@@ -1,0 +1,10 @@
+fn foo(let a:int)->int {
+    if(a == 150) {ret a;}
+
+    ret foo(a + 1);
+}
+
+fn main()->int {
+  let b:int = foo(100);
+  putint(b);
+}
