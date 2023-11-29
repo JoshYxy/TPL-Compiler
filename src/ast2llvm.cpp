@@ -627,7 +627,12 @@ Func_local* ast2llvmFunc(aA_fnDef f)
             break;
         }
     }
-
+    if(emit_irs.back()->type != L_StmKind::T_RETURN) {
+        if(type.type == ReturnType::VOID_TYPE) 
+            emit_irs.push_back(L_Ret(nullptr));
+        else
+            emit_irs.push_back(L_Ret(AS_Operand_Const(0)));
+    }
     return new Func_local(name,type,args,emit_irs);
 }
 
@@ -644,13 +649,22 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             {
                 if(block->u.varDeclStmt->u.varDecl->u.declScalar->type->type == A_structTypeKind)
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDecl->u.declScalar->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDecl->u.declScalar->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDecl->u.declScalar->id,
                         Temp_newtemp_struct_ptr(0, *block->u.varDeclStmt->u.varDecl->u.declScalar->type->u.structType));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDecl->u.declScalar->id]));
                     emit_irs.push_back(stm);
+                    
+            
                 }
                 else
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDecl->u.declScalar->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDecl->u.declScalar->id);
+                    }
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDecl->u.declScalar->id) == localVarMap.end())
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDecl->u.declScalar->id,
                         Temp_newtemp_int_ptr(0));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDecl->u.declScalar->id]));
@@ -661,6 +675,9 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             {
                 if(block->u.varDeclStmt->u.varDecl->u.declArray->type->type == A_structTypeKind)
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDecl->u.declArray->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDecl->u.declArray->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDecl->u.declArray->id,
                         Temp_newtemp_struct_ptr(block->u.varDeclStmt->u.varDecl->u.declArray->len, *block->u.varDeclStmt->u.varDecl->u.declArray->type->u.structType));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDecl->u.declArray->id]));
@@ -668,6 +685,9 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
                 }
                 else
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDecl->u.declArray->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDecl->u.declArray->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDecl->u.declArray->id,
                         Temp_newtemp_int_ptr(block->u.varDeclStmt->u.varDecl->u.declArray->len));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDecl->u.declArray->id]));
@@ -685,6 +705,9 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             {
                 if(block->u.varDeclStmt->u.varDef->u.defScalar->type->type == A_structTypeKind)
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDef->u.defScalar->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDef->u.defScalar->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDef->u.defScalar->id,
                         Temp_newtemp_struct_ptr(0, *block->u.varDeclStmt->u.varDef->u.defScalar->type->u.structType));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defScalar->id]));
@@ -697,6 +720,9 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
                 }
                 else
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDef->u.defScalar->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDef->u.defScalar->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDef->u.defScalar->id,
                         Temp_newtemp_int_ptr(0));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defScalar->id]));
@@ -712,6 +738,9 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
             {
                 if(block->u.varDeclStmt->u.varDef->u.defArray->type->type == A_structTypeKind)
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDef->u.defArray->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDef->u.defArray->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDef->u.defArray->id,
                         Temp_newtemp_struct_ptr(block->u.varDeclStmt->u.varDef->u.defArray->len, *block->u.varDeclStmt->u.varDecl->u.declArray->type->u.structType));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defArray->id]));
@@ -728,12 +757,15 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
                             AS_Operand_Const(i));
                         emit_irs.push_back(stm2);
 
-                        L_stm *stm3 = L_Store(right, AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defScalar->id]));
+                        L_stm *stm3 = L_Store(right, tmp);
                         emit_irs.push_back(stm3);
                     }
                 }
                 else
                 {
+                    if(localVarMap.find(*block->u.varDeclStmt->u.varDef->u.defArray->id) != localVarMap.end()) { // declared in previous scope
+                        localVarMap.erase(*block->u.varDeclStmt->u.varDef->u.defArray->id);
+                    }
                     localVarMap.emplace(*block->u.varDeclStmt->u.varDef->u.defArray->id,
                         Temp_newtemp_int_ptr(block->u.varDeclStmt->u.varDef->u.defArray->len));
                     L_stm *stm = L_Alloca(AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defArray->id]));
@@ -750,7 +782,7 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
                             AS_Operand_Const(i));
                         emit_irs.push_back(stm2);
 
-                        L_stm *stm3 = L_Store(right, AS_Operand_Temp(localVarMap[*block->u.varDeclStmt->u.varDef->u.defScalar->id]));
+                        L_stm *stm3 = L_Store(right, tmp);
                         emit_irs.push_back(stm3);
                     }
                 }
@@ -1122,7 +1154,16 @@ AS_operand* ast2llvmIndexExpr(aA_indexExpr index)
     }
     else if(index->kind == A_indexExprKind::A_idIndexKind)
     {
-        AS_operand* ptr = AS_Operand_Temp(localVarMap[*index->u.id]);
+        AS_operand* ptr;
+        if(localVarMap.find(*index->u.id) != localVarMap.end())
+        {
+            ptr = AS_Operand_Temp(localVarMap[*index->u.id]);
+        }
+        else
+        {
+           ptr = AS_Operand_Name(globalVarMap[*index->u.id]);
+        }
+        
         AS_operand* dst = AS_Operand_Temp(Temp_newtemp_int());
         L_stm *stm = L_Load(dst, ptr);
         emit_irs.push_back(stm);
