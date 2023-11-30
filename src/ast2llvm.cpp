@@ -598,7 +598,7 @@ Func_local* ast2llvmFunc(aA_fnDef f)
     {
         if(decl->kind == A_varDeclScalarKind)
         {
-            if(decl->u.declScalar->type->type == A_intTypeKind)
+            if(decl->u.declScalar->type->type == A_nativeTypeKind)
             {        
                 Temp_temp *var = Temp_newtemp_int_ptr(0);
                 localVarMap.emplace(*decl->u.declScalar->id, var);
@@ -701,7 +701,7 @@ void ast2llvmBlock(aA_codeBlockStmt b,Temp_label *con_label,Temp_label *bre_labe
         }
         else if(block->u.varDeclStmt->kind == A_varDefKind)
         {
-            if(block->u.varDeclStmt->u.varDef->kind == A_varDeclScalarKind)
+            if(block->u.varDeclStmt->u.varDef->kind == A_varDefScalarKind)
             {
                 if(block->u.varDeclStmt->u.varDef->u.defScalar->type->type == A_structTypeKind)
                 {

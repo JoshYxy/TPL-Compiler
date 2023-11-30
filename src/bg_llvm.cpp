@@ -69,9 +69,59 @@ Graph<L_block*>& Create_bg(list<L_block*>& bl) {
 static void DFS(Node<L_block*>* r, Graph<L_block*>& bg) {
 
 }
-
 void SingleSourceGraph(Node<L_block*>* r, Graph<L_block*>& bg,L_func*fun) {
     //   Todo
+    if(r->color) return;
+    r->color = 1;
+    for(auto node : r->succs){
+        SingleSourceGraph(bg.mynodes[node], bg, fun);
+    }
+    if(r->nodeid() == 0) {
+        int siz = bg.nodecount;
+        for(int i = 0 ; i < siz; i++){
+            auto block_node = bg.mynodes[i];
+            if(block_node->color == 0) {
+                fun->blocks.remove(block_node->info);
+                // for(auto it = block_node->preds.begin(); it != block_node->preds.end(); it++) {
+                //     auto node = *it;
+                //     // bg.rmEdge(bg.mynodes[node], block_node);
+                //     auto to = block_node;
+                //     auto from = bg.mynodes[node];
+                //     it = to->preds.erase(to->preds.find(from->mykey));
+                //     from->succs.erase(from->succs.find(to->mykey));
+                //     it--;
+                // }
+                vector<int> toRemoveSucc;
+                for (auto it = block_node->succs.begin(); it != block_node->succs.end(); it++) {
+                    auto node = *it;
+                    toRemoveSucc.push_back(node);
+                }
+                for (auto node : toRemoveSucc) {
+                    bg.rmEdge(block_node, bg.mynodes[node]);
+                }
+                
+                vector<int> toRemovePreds;
+                for (auto it = block_node->preds.begin(); it != block_node->preds.end(); it++) {
+                    auto node = *it;
+                    toRemovePreds.push_back(node);
+                }
+                for (auto node : toRemovePreds) {
+                    bg.rmEdge(bg.mynodes[node], block_node);
+                }
+
+                // for(auto it = block_node->succs.begin(); it != block_node->succs.end(); it++) {
+                //     auto node = *it;
+                //     // bg.rmEdge(block_node, bg.mynodes[node]);
+                //     auto to = bg.mynodes[node];
+                //     auto from = block_node;
+                //     to->preds.erase(to->preds.find(from->mykey));
+                //     it = from->succs.erase(from->succs.find(to->mykey));
+                //     it--;
+                // }
+                bg.rmNode(block_node);
+            }
+        }
+    }
 }
 
 void Show_graph(FILE* out,GRAPH::Graph<LLVMIR::L_block*>&bg){
