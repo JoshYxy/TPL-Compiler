@@ -1,1 +1,2 @@
 if else has individual end block
+if a var has been used only once by assigning to another var, it can be replaced directly

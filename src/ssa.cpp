@@ -112,6 +112,20 @@ void combine_addr(LLVMIR::L_func* fun) {
     }
 }
 
+bool multiuse(AS_operand* as, list<L_stm*> instrs) { // whether the as is used in multiple places
+    int count = 0;
+    for(auto stm : instrs) {
+        list<AS_operand**> AS_list = get_def_int_operand(stm);
+        for(auto use_as : AS_list) {
+            if(*use_as == as) {
+                count++;
+                break;
+            }
+        }
+    }
+    return count >= 2;
+}
+
 void mem2reg(LLVMIR::L_func* fun) {
    //   Todo
     for(auto block : fun->blocks) {
@@ -132,11 +146,11 @@ void mem2reg(LLVMIR::L_func* fun) {
                     AS_operand* src = stm->u.STORE->src;
                     if(src->kind == OperandKind::TEMP) {
                         bool found = false;
-                        for(auto it2 = block->instrs.begin(); it2 != block->instrs.end(); it2++) { // search for use of the load AS
+                        for(auto it2 = block->instrs.begin(); it2 != block->instrs.end(); it2++) { // search for def of the stored AS
                             auto pre_stm = *it2; 
                             list<AS_operand**> AS_list = get_def_int_operand(pre_stm);
                             for(auto as : AS_list) {
-                                if(*as == src) {
+                                if(*as == src && !multiuse(*as, block->instrs)) {
                                     *as = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
                                     found = true;
                                 }
