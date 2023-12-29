@@ -767,7 +767,7 @@ void llvm2asmGlobal(vector<AS_global*> &globals, L_def &def) {
             // Fixme: add here
             auto label = new AS_label(def.u.GLOBAL->name);
             if(def.u.GLOBAL->def.kind == TempType::INT_TEMP) {
-                int value = def.u.GLOBAL->init.front();
+                int value = def.u.GLOBAL->init.empty()? 0 : def.u.GLOBAL->init.front();
                 auto global = new AS_global(label, value, 0);
                 globals.push_back(global);
             }
